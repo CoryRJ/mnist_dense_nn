@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
 			cout << image[28*i +j] << " ";
 		cout << endl;
 	}
+
 	cout << get_n_result("mnist_dataset/train-labels.idx1-ubyte",stoi(argv[1])) << endl;
 	return 0;
 }
