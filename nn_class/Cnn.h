@@ -5,26 +5,31 @@ class Cnn
 {
 public:
 	int numLayers;
-	float error(float inp);
-	float error_dir(float inp);
+	float error(float res, float tru);
+	float error_dir(float res,float tru);
 	float act_dir(float inp);
 	float softmax(float inp);
 	float softmax_dir(float inp);
+	float total_soft = 0;
 	float (*act)(float);
-	int backprop();
+	void backprop();
+	float learning_rate = 1;
+	float sum = 0;
 	struct node
 	{
-		float b;
-		float a;
-		float d;
+		float b=0;
+		float a=0;
+		float bias=0;
+		float bias_d=0;
+		float d=0;
 		node *n = NULL;
 	};
 	struct weight
 	{
 		node *L=NULL;
 		node *R=NULL;
-		float w;
-		float d;
+		float w=0;
+		float d=0;
 		weight *n = NULL;
 		weight *alt = NULL; //if NULL, is original wait. Otherwise, update the thing in the address
 	};
@@ -34,11 +39,13 @@ public:
 	Cnn(int numOfLayers, int numOfNodes);
 	void setAct(float (*f)(float));
 	void setErr(float (*f)(float));
+	void run(float *input);
+	float* results();
 
 private:
 	std::vector<node*> nodes;
 	std::vector<weight*> weights;
-	int layerDims[];
+	int *layerDims;
 
 };
 

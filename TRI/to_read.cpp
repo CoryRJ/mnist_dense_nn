@@ -15,7 +15,7 @@ int charBitToInt(char a, int offset)
 }
 
 //END:Function that reads in from a file
-void get_n(string aFile,int n, int* out)
+void get_n(string aFile,int n, float* out)
 {
 	ifstream file(aFile);
 	string str; 
