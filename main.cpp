@@ -10,8 +10,8 @@
 #define IN 28*28
 #define MID 28*28
 #define TESTS 500
-#define TESTROUNDS 50
-#define BATCH 100
+#define TESTROUNDS 25
+#define BATCH 25
 using namespace std;
 
 float x_s(float f)
@@ -34,6 +34,7 @@ float x_s(float f)
 int main(int argc, char *argv[])
 {	
 
+	cout << setprecision(PRE);
 	float image[IN];
 	int dims[SIZE];
 	float *result;
@@ -74,30 +75,35 @@ int main(int argc, char *argv[])
 		}
 		cout << "Done! Updating... ... ..." << endl;
 		aNet.update();
-		cout << "Testing for: " << TESTROUNDS << endl;
 		int numBigger = 0;
-		for(int j = index; j < index+TESTROUNDS; j++)
+		if(i%10 == 0)
 		{
-			
-			get_n("mnist_dataset/train-images.idx3-ubyte",j,image);
-			res = get_n_result("mnist_dataset/train-labels.idx1-ubyte",j);
-			for(int l = 0; l <IN; l++)
+			cout << "Testing for: " << TESTROUNDS << endl;
+			for(int j = 0; j < TESTROUNDS; j++)
 			{
-				image[l] = image[l]/100.0f;
+				
+				get_n("mnist_dataset/train-images.idx3-ubyte",index+j,image);
+				res = get_n_result("mnist_dataset/train-labels.idx1-ubyte",index+j);
+				for(int l = 0; l <IN; l++)
+				{
+					image[l] = image[l]/100.0f;
+				}
+				aNet.run(image);
+				result = aNet.results();
+				int big=0;
+				for(int k = 0; k < OUT;k++)
+				{
+					if(result[big] < result[k])
+						big = k;
+			//		cout << result[k] << " ";
+				}
+			//	cout << ": "<<res<<endl;
+				if(res == big)
+					numBigger++;
+				aNet.reset();
 			}
-			aNet.run(image);
-			result = aNet.results();
-			int big=0;
-			for(int k = 1; k < OUT;k++)
-			{
-				if(result[big] < result[k])
-					big = k;
-			}
-			if(res == big)
-				numBigger++;
-			aNet.reset();
+			cout << "Results: " << numBigger << " / " << TESTROUNDS << " Correct" << endl << endl;
 		}
-		cout << "Results: " << numBigger << " / " << TESTROUNDS << " Correct" << endl << endl;
 	}
 	free(result);
 	return 0;

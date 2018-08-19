@@ -15,7 +15,7 @@ public:
 	void backprop(float *real_vals);
 	void update();
 	void reset();
-	float learning_rate = .000001;
+	float learning_rate = .01;
 	float sum = 0;
 	int batch = 0;
 	struct node
