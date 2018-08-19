@@ -79,19 +79,37 @@ float Cnn::softmax_dir(float inp)
 	return (exp(inp)*(total_soft-exp(inp)))/(total_soft*total_soft);
 }
 
-void Cnn::backprop()
+void Cnn::backprop(float *real_vals)
 {
+	batch++;
 	node *aNode = nodes[numLayers-1];
 	weight *aWeight;
 	//START: right seen layer
 //	std::cout << "soft_total: "<< total_soft << std::endl;
+	int n = 0;
 	while(aNode != NULL)
 	{
-//		std::cout << "R d er_d: "<< error_dir(softmax(aNode->b),0.5) << std::endl;
-//		std::cout << "R d sf_d: "<< softmax_dir(aNode->b) << std::endl;
-		aNode->d = error_dir(softmax(aNode->b),0.1)*softmax_dir(aNode->b);
+		if(isnan(aNode->d))
+		{
+			std::cout << "nan1 aNode d: " << aNode->d << std::endl;
+		}
+		aNode->d = error_dir(softmax(aNode->b),real_vals[n++])*softmax_dir(aNode->b);
+		if(isnan(aNode->d) || (aNode->d > 300)|| (aNode->d < -300))
+		{
+			std::cout << "nan2 aNode d: " << aNode->d << std::endl;
+			std::cout << "nan2 er_d: " <<  error_dir(softmax(aNode->b),real_vals[n-1])<< std::endl;
+			std::cout << "nan2 soft_max_d: " << softmax_dir(aNode->b) << std::endl;
+			std::cout << "nan2 soft_max_d*er_d: " << error_dir(softmax(aNode->b),real_vals[n-1])*softmax_dir(aNode->b)<< std::endl;
+			std::cout << "nan2 soft_max: " << softmax(aNode->b) << std::endl;
+			std::cout << "nan2 aNode b: " << aNode->b << std::endl;
+			std::cout << "nan2 exp(b): " << exp(aNode->b) << std::endl;
+			std::cout << "nan2 soft_total: " << total_soft << std::endl;
+			std::cout << "nan2 1.0/soft_total^2: " << 1.0/(total_soft*total_soft) << std::endl;
+			std::cout << std::endl;
+			while(true){}
+		}
 		aNode->b = 0;
-//		std::cout << "R d: "<< aNode->d << std::endl;
+		aNode->bias_d += aNode->d;
 		aNode = aNode->n;
 	}
 	//END: right seen layer
@@ -100,24 +118,33 @@ void Cnn::backprop()
 		aWeight = weights[i];
 		while(aWeight != NULL)
 		{
+	n++;
 			aWeight->L->d += aWeight->R->d*aWeight->w;
-//			std::cout << "b w: "<< aWeight->w << std::endl;
-			aWeight->w -= learning_rate*aWeight->R->d*aWeight->L->a;
-			if(isnan(aWeight->w))
+			aWeight->d += aWeight->R->d*aWeight->L->a;
+			if(isnan(aWeight->w) || isnan(aWeight->L->d) || (aWeight->d > 300)|| (aWeight->d < -300))
 			{
-//				std::cout << "FOUND A NAN!" << std::endl;
+				std::cout << "nan L d " << aWeight->L->d << std::endl;
+				std::cout << "nan R d " << aWeight->R->d << std::endl;
+				std::cout << "nan L a " << aWeight->L->a << std::endl;
+				std::cout << "nan w " << aWeight->w << std::endl;
+				std::cout << "nan w d " << aWeight->d << std::endl;
+				std::cout << "layer " << i << std::endl;
+				std::cout << "weight num " << n << std::endl;
+				std::cout << "FOUND A NAN!" << std::endl;
+				while(true){}
 			}
-//			std::cout << "a w: "<< aWeight->w << std::endl;
 			aWeight = aWeight->n;
 		}
 		aNode = nodes[i];
 		while(aNode != NULL)
 		{
 			aNode->d = aNode->d*act_dir(aNode->b);
+			aNode->bias_d += aNode->d;
 			aNode->b = 0;
 			aNode = aNode->n;
 		}
 	}
+	
 }
 void Cnn::setAct(float (*f)(float))
 {
@@ -125,6 +152,10 @@ void Cnn::setAct(float (*f)(float))
 }
 float Cnn::act_dir(float inp)
 {
+//	return (exp(-inp))*act(inp)*act(inp);
+
+
+
 	if(inp > 0)
 		return 1;
 	return 0;
@@ -164,8 +195,14 @@ void Cnn::run(float *input)
 	total_soft = 0;
 	while(aNode != NULL)
 	{
-//		std::cout << "run soft b: " << aNode->b << std::endl;
-//		std::cout << "run soft b: " << exp(aNode->b) << std::endl;
+
+		if(isnan(exp(aNode->b) || isnan(total_soft)))
+		{
+			std::cout << "run soft b: " << aNode->b << std::endl;
+			std::cout << "run soft b: " << exp(aNode->b) << std::endl;
+			std::cout << "run soft_total: " << total_soft << std::endl;
+			while(true){}
+		}
 		total_soft += exp(aNode->b);
 		aNode = aNode->n;
 	}
@@ -182,3 +219,70 @@ float* Cnn::results()
 	}
 	return results;
 }
+
+void Cnn::update()
+{
+	
+	node *aNode = nodes[numLayers-1];
+	weight *aWeight;
+	for(int i = numLayers-2; i > -1; i--)
+	{
+		aNode = nodes[i];
+		aWeight = weights[i];
+		while(aWeight != NULL)
+		{
+			aWeight->w -= learning_rate*aWeight->d/(float)batch;
+			if(isnan(aWeight->w) || isnan(aWeight->L->d)||(aWeight->w >300))
+			{
+				std::cout << "nan3 L d " << aWeight->L->d << std::endl;
+				std::cout << "nan3 R d " << aWeight->R->d << std::endl;
+				std::cout << "nan3 L a " << aWeight->L->a << std::endl;
+				std::cout << "nan3 w " << aWeight->w << std::endl;
+				std::cout << "nan3 w d " << aWeight->d << std::endl;
+				std::cout << "nan3 batch " << batch << std::endl;
+				std::cout << "FOUND A NAN!" << std::endl;
+				while(true){}
+			}
+			aWeight->d = 0;
+			aWeight = aWeight->n;
+		}
+		while(aNode != NULL)
+		{
+			aNode->bias -= learning_rate*aNode->bias_d/(float)batch;
+			aNode->bias_d = 0;
+			aNode = aNode->n;
+		}
+	}	
+	batch = 0;
+}
+
+void Cnn::reset()
+{
+	
+	node *aNode;
+	weight *aWeight;
+	for(int i = numLayers-2; i > -1; i--)
+	{
+		aWeight = weights[i];
+		while(aWeight != NULL)
+		{
+			aWeight->d = 0.f;
+			aWeight = aWeight->n;
+		}
+	}
+	for(int i = numLayers-1; i > -1; i--)
+	{
+		aNode = nodes[i];
+		while(aNode != NULL)
+		{
+			aNode->bias_d = 0.f;
+			aNode->d = 0.f;
+			aNode->b = 0.f;
+			aNode->a = 0.f;
+			aNode = aNode->n;
+		}
+	}
+	total_soft = 0;
+	batch = 0;
+}
+

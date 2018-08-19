@@ -4,9 +4,14 @@
 #include <math.h>
 #include "TRI/to_read.h"
 #include "nn_class/Cnn.h"
-#define SIZE 2
+#define SIZE 5
 #define PRE 2
 #define OUT 10
+#define IN 28*28
+#define MID 28*28
+#define TESTS 500
+#define TESTROUNDS 50
+#define BATCH 100
 using namespace std;
 
 float x_s(float f)
@@ -29,57 +34,71 @@ float x_s(float f)
 int main(int argc, char *argv[])
 {	
 
-	float image[784];
-
-	get_n("mnist_dataset/train-images.idx3-ubyte",stoi(argv[1]),image);
+	float image[IN];
 	int dims[SIZE];
 	float *result;
-	dims[0] = 200;
-	dims[1] = 200;
-	dims[2] = 200;
-	dims[3] = 200;
-	dims[4] = 200;
 	for(int i = 0; i < SIZE; i++)
 	{
-		dims[i] = 2;
+		dims[i] = MID;
 	}
+	dims[0] = IN;
 	dims[SIZE-1] = OUT;
-	for(int i = 0; i <28*28; i++)
-	{
-//		image[i] = image[i]/100.0f;
-		image[i] = 1;
-	}
 
 	Cnn aNet(SIZE,dims);
 	aNet.setAct(&x_s);
-	aNet.run(image);
-	result = aNet.results();
-	float sum = 0;
+	float *values = (float*) malloc(sizeof(float)*10);
 	for(int i = 0; i < OUT; i++)
 	{
-		cout << result[i] << " ";
-		sum += result[i];
+		values[i] = 0;
 	}
-	cout <<"= " << sum << endl;
-	for(int i = 0; i < 100; i++)
+	int index = 0;
+	int res = 0;
+	for(int i = 0; i < TESTS; i++)
 	{
-		aNet.backprop();
-		aNet.run(image);
-		result = aNet.results();
-		for(int i = 0; i < OUT; i++)
+		aNet.reset();
+		cout << "Starting batch: " << i << " / " << TESTS << " ... ... ..." << endl;
+		for(int j = 0; j < BATCH; j++)
 		{
-			cout << setprecision(PRE) << result[i] << " ";
+			
+			get_n("mnist_dataset/train-images.idx3-ubyte",index,image);
+			for(int l = 0; l <IN; l++)
+			{
+				image[l] = image[l]/100.0f;
+			}
+			res = get_n_result("mnist_dataset/train-labels.idx1-ubyte",index);
+			values[res] = 1;
+			aNet.run(image);
+			aNet.backprop(values);
+			values[res] = 0;
+			index++;
 		}
-		cout << endl;
-		cout << endl;
+		cout << "Done! Updating... ... ..." << endl;
+		aNet.update();
+		cout << "Testing for: " << TESTROUNDS << endl;
+		int numBigger = 0;
+		for(int j = index; j < index+TESTROUNDS; j++)
+		{
+			
+			get_n("mnist_dataset/train-images.idx3-ubyte",j,image);
+			res = get_n_result("mnist_dataset/train-labels.idx1-ubyte",j);
+			for(int l = 0; l <IN; l++)
+			{
+				image[l] = image[l]/100.0f;
+			}
+			aNet.run(image);
+			result = aNet.results();
+			int big=0;
+			for(int k = 1; k < OUT;k++)
+			{
+				if(result[big] < result[k])
+					big = k;
+			}
+			if(res == big)
+				numBigger++;
+			aNet.reset();
+		}
+		cout << "Results: " << numBigger << " / " << TESTROUNDS << " Correct" << endl << endl;
 	}
-		result = aNet.results();
-	for(int i = 0; i < OUT; i++)
-	{
-		cout << result[i] << " ";
-	}
-	cout << endl;
-	cout << get_n_result("mnist_dataset/train-labels.idx1-ubyte",stoi(argv[1])) << endl;
 	free(result);
 	return 0;
 }

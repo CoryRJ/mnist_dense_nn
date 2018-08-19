@@ -12,9 +12,12 @@ public:
 	float softmax_dir(float inp);
 	float total_soft = 0;
 	float (*act)(float);
-	void backprop();
-	float learning_rate = 1;
+	void backprop(float *real_vals);
+	void update();
+	void reset();
+	float learning_rate = .000001;
 	float sum = 0;
+	int batch = 0;
 	struct node
 	{
 		float b=0;
