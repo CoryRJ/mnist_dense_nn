@@ -5,18 +5,14 @@ class Cnn
 {
 public:
 	int numLayers;
-	float error(float res, float tru);
-	float error_dir(float res,float tru);
-	float act_dir(float inp);
+	float (*error)(float, float,float);
+	float (*error_dir)(float,float,float);
+	float (*act)(float);
+	float (*act_dir)(float);
 	float softmax(float inp);
 	float softmax_dir(float inp);
+	float learning_rate = .1;
 	float total_soft = 0;
-	float (*act)(float);
-	void backprop(float *real_vals);
-	void update();
-	void reset();
-	float learning_rate = .01;
-	float sum = 0;
 	int batch = 0;
 	struct node
 	{
@@ -40,10 +36,15 @@ public:
 public:
 	Cnn(int numOfLayers, int *layers);
 	Cnn(int numOfLayers, int numOfNodes);
-	void setAct(float (*f)(float));
-	void setErr(float (*f)(float));
+	void backprop(float *real_vals);
+	void update();
+	void reset();
+	void setAct(float (*f)(float),float (*f_d)(float));
+	void setError(float (*f)(float,float,float),float (*f_d)(float,float,float));
+	void setLearnRate(float lr);
 	void run(float *input);
-	float* results();
+	void results(float *results);
+	void destroy();
 
 private:
 	std::vector<node*> nodes;
@@ -51,6 +52,8 @@ private:
 	int *layerDims;
 
 };
-
-
+float relu(float inp);
+float relu_dir(float inp);
+float mse(float res, float tru,float out);
+float mse_dir(float res,float tru,float out);
 #endif  //CNN

@@ -5,6 +5,10 @@
 #include <random>
 Cnn::Cnn(int numOfLayers, int *layers)
 {
+	act = relu;
+	act_dir = relu_dir;
+	error = mse;
+	error_dir = mse_dir;
 	node *aNode;
 	node *aNode2;
 	node *spareN;
@@ -62,21 +66,19 @@ Cnn::Cnn(int numOfLayers, int *layers)
 	//END: Complete graph nn
 	numLayers = numOfLayers;
 }
-float Cnn::error(float res, float tru)
-{
-	return 0.5*(res-tru)*(res-tru);
-}
-float Cnn::error_dir(float res,float tru)
-{
-	return res-tru;
-}
 float Cnn::softmax(float inp)
 {
-	return exp(inp)/total_soft;
+	float res = exp(inp)/total_soft;
+	if(isinf(res)||isnan(res))
+		return 0;
+	return res;
 }
 float Cnn::softmax_dir(float inp)
 {
-	return (exp(inp)*(total_soft-exp(inp)))/(total_soft*total_soft);
+	float res = (exp(inp)/total_soft)*((total_soft-exp(inp))/total_soft);
+	if(isinf(res)||isnan(res))
+		return 0;
+	return res;
 }
 
 void Cnn::backprop(float *real_vals)
@@ -93,13 +95,13 @@ void Cnn::backprop(float *real_vals)
 		{
 			std::cout << "nan1 aNode d: " << aNode->d << std::endl;
 		}
-		aNode->d = error_dir(softmax(aNode->b),real_vals[n++])*softmax_dir(aNode->b);
+		aNode->d = error_dir(softmax(aNode->b+aNode->bias),real_vals[n++],layerDims[numLayers-1])*softmax_dir(aNode->b+aNode->bias);
 		if(isnan(aNode->d) || (aNode->d > 300)|| (aNode->d < -300))
 		{
 			std::cout << "nan2 aNode d: " << aNode->d << std::endl;
-			std::cout << "nan2 er_d: " <<  error_dir(softmax(aNode->b),real_vals[n-1])<< std::endl;
+			std::cout << "nan2 er_d: " <<  error_dir(softmax(aNode->b),real_vals[n-1],layerDims[numLayers-1])<< std::endl;
 			std::cout << "nan2 soft_max_d: " << softmax_dir(aNode->b) << std::endl;
-			std::cout << "nan2 soft_max_d*er_d: " << error_dir(softmax(aNode->b),real_vals[n-1])*softmax_dir(aNode->b)<< std::endl;
+			std::cout << "nan2 soft_max_d*er_d: " << error_dir(softmax(aNode->b),real_vals[n-1],layerDims[numLayers-1])*softmax_dir(aNode->b)<< std::endl;
 			std::cout << "nan2 soft_max: " << softmax(aNode->b) << std::endl;
 			std::cout << "nan2 aNode b: " << aNode->b << std::endl;
 			std::cout << "nan2 exp(b): " << exp(aNode->b) << std::endl;
@@ -146,21 +148,15 @@ void Cnn::backprop(float *real_vals)
 	}
 	
 }
-void Cnn::setAct(float (*f)(float))
+void Cnn::setAct(float (*f)(float),float (*f_d)(float))
 {
 	act = f;
+	act_dir = f_d;
 }
-float Cnn::act_dir(float inp)
+void Cnn::setError(float (*f)(float,float,float),float (*f_d)(float,float,float))
 {
-//	return (exp(-inp))*act(inp)*act(inp);
-
-
-
-	if(inp > 0)
-		return 1;
-	return 0;
-	float delta = 0.00001;
-	return (act(inp+delta)-act(inp-delta))/(2*delta);
+	error = f;
+	error_dir = f_d;
 }
 
 void Cnn::run(float *input)
@@ -195,29 +191,28 @@ void Cnn::run(float *input)
 	total_soft = 0;
 	while(aNode != NULL)
 	{
-
-		if(isnan(exp(aNode->b) || isnan(total_soft)))
+/*
+		if(isnan(exp(aNode->b)) || isnan(total_soft) || isinf(1.0/(total_soft*total_soft)))
 		{
 			std::cout << "run soft b: " << aNode->b << std::endl;
 			std::cout << "run soft b: " << exp(aNode->b) << std::endl;
 			std::cout << "run soft_total: " << total_soft << std::endl;
-			while(true){}
-		}
-		total_soft += exp(aNode->b);
+			std::cout << "run 1.0/soft_total^2: " << 1.0f/(total_soft*total_soft) << std::endl;
+//			while(true){}
+		}*/
+		total_soft += exp(aNode->b+aNode->bias);
 		aNode = aNode->n;
 	}
 }
 
-float* Cnn::results()
+void Cnn::results(float *results)
 {
-	float* results = (float*) malloc(sizeof(float)*layerDims[numLayers-1]);
 	node *aNode=nodes[numLayers-1];
 	for(int i =0; i < layerDims[numLayers-1]; i++)
 	{
 		results[i] = softmax(aNode->b);
 		aNode = aNode->n;
 	}
-	return results;
 }
 
 void Cnn::update()
@@ -227,7 +222,7 @@ void Cnn::update()
 	weight *aWeight;
 	for(int i = numLayers-2; i > -1; i--)
 	{
-		aNode = nodes[i];
+		aNode = nodes[i+1];
 		aWeight = weights[i];
 		while(aWeight != NULL)
 		{
@@ -286,3 +281,28 @@ void Cnn::reset()
 	batch = 0;
 }
 
+void Cnn::setLearnRate(float lr)
+{
+	learning_rate = lr;
+}
+
+float relu(float inp)
+{
+	if(inp > 0)
+		return inp;
+	return 0;
+}
+float relu_dir(float inp)
+{
+	if(inp > 0)
+		return 1;
+	return 0;
+}
+float mse(float res, float tru,float out)
+{
+	return 0.5*(res-tru)*(res-tru)/out;
+}
+float mse_dir(float res,float tru, float out)
+{
+	return (res-tru)/out;
+}
