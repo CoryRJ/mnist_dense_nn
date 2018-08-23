@@ -12,7 +12,9 @@ public:
 	float softmax(float inp);
 	float softmax_dir(float inp);
 	float learning_rate = .1;
-	float total_soft = 0;
+	float limit_rate = 0;
+	float momentum_fac = 0.9;
+	double total_soft = 0;
 	int batch = 0;
 	struct node
 	{
@@ -20,6 +22,7 @@ public:
 		float a=0;
 		float bias=0;
 		float bias_d=0;
+		float bias_d_old=0;
 		float d=0;
 		node *n = NULL;
 	};
@@ -28,6 +31,7 @@ public:
 		node *L=NULL;
 		node *R=NULL;
 		float w=0;
+		float d_old=0;
 		float d=0;
 		weight *n = NULL;
 		weight *alt = NULL; //if NULL, is original wait. Otherwise, update the thing in the address

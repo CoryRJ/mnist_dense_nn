@@ -14,7 +14,7 @@ Cnn::Cnn(int numOfLayers, int *layers)
 	node *spareN;
 	weight *aWeight;
 	weight *spareW;
-	std::default_random_engine gen;
+	std::default_random_engine gen(121);
 	std::normal_distribution<float> dis(0,1);
 	layerDims = (int*)malloc(sizeof(int)*numOfLayers);
 	for(int i = 0; i < numOfLayers; i++)
@@ -49,7 +49,8 @@ Cnn::Cnn(int numOfLayers, int *layers)
 			{
 				aWeight->L = aNode;
 				aWeight->R = aNode2;
-				aWeight->w = dis(gen)*(sqrt(1.0/layerDims[i+1]));
+				aWeight->w = dis(gen)*(sqrt(1.0/layerDims[i]));
+				aWeight->d_old=0;
 //				std::cout << aWeight->w << std::endl;
 				aWeight->d = 0; 
 				aWeight->n =  (struct weight*)std::malloc(sizeof(struct weight));
@@ -68,17 +69,17 @@ Cnn::Cnn(int numOfLayers, int *layers)
 }
 float Cnn::softmax(float inp)
 {
-	float res = exp(inp)/total_soft;
-	if(isinf(res)||isnan(res))
-		return 0;
-	return res;
+	double res = exp((double)inp)/total_soft;
+//	if(isinf(res)||isnan(res))
+//		return 0;
+	return (float)res;
 }
 float Cnn::softmax_dir(float inp)
 {
-	float res = (exp(inp)/total_soft)*((total_soft-exp(inp))/total_soft);
-	if(isinf(res)||isnan(res))
-		return 0;
-	return res;
+	double res = (exp((double)inp)/total_soft)*((total_soft-exp((double)inp))/total_soft);
+//	if(isinf(res)||isnan(res))
+//		return 1;
+	return (float)res;
 }
 
 void Cnn::backprop(float *real_vals)
@@ -108,6 +109,13 @@ void Cnn::backprop(float *real_vals)
 			std::cout << "nan2 soft_total: " << total_soft << std::endl;
 			std::cout << "nan2 1.0/soft_total^2: " << 1.0/(total_soft*total_soft) << std::endl;
 			std::cout << std::endl;
+			aNode = nodes[numLayers-1];
+			while(aNode != NULL)
+			{
+				std::cout << "all nan2 aNode b: " << aNode->b << std::endl;
+				std::cout << "all nan2 aNode bias: " << aNode->bias << std::endl;
+				aNode=aNode->n;
+			}
 			while(true){}
 		}
 		aNode->b = 0;
@@ -140,7 +148,7 @@ void Cnn::backprop(float *real_vals)
 		aNode = nodes[i];
 		while(aNode != NULL)
 		{
-			aNode->d = aNode->d*act_dir(aNode->b);
+			aNode->d = aNode->d*act_dir(aNode->b+aNode->bias);
 			aNode->bias_d += aNode->d;
 			aNode->b = 0;
 			aNode = aNode->n;
@@ -200,33 +208,40 @@ void Cnn::run(float *input)
 			std::cout << "run 1.0/soft_total^2: " << 1.0f/(total_soft*total_soft) << std::endl;
 //			while(true){}
 		}*/
-		total_soft += exp(aNode->b+aNode->bias);
+		total_soft += exp((double)(aNode->b+aNode->bias));
 		aNode = aNode->n;
 	}
 }
 
-void Cnn::results(float *results)
+void Cnn::results(float *result)
 {
 	node *aNode=nodes[numLayers-1];
 	for(int i =0; i < layerDims[numLayers-1]; i++)
 	{
-		results[i] = softmax(aNode->b);
+//		std::cout <<"b: "<< aNode->b << " bias: " << aNode->bias << std::endl;
+		result[i] = softmax(aNode->b+aNode->bias);
 		aNode = aNode->n;
 	}
+//	std::cout << std::endl;
 }
 
 void Cnn::update()
 {
-	
+	if(batch == 0)
+		return;
 	node *aNode = nodes[numLayers-1];
 	weight *aWeight;
+	int aNum = 0;
 	for(int i = numLayers-2; i > -1; i--)
 	{
 		aNode = nodes[i+1];
 		aWeight = weights[i];
 		while(aWeight != NULL)
 		{
-			aWeight->w -= learning_rate*aWeight->d/(float)batch;
+			aWeight->d_old = momentum_fac*aWeight->d_old+learning_rate*aWeight->d/(float)batch;
+			aWeight->w -= aWeight->d_old;
+//			if(aNum < 20)
+//				std::cout << "nan3 w d " << aWeight->d << std::endl;
 			if(isnan(aWeight->w) || isnan(aWeight->L->d)||(aWeight->w >300))
 			{
 				std::cout << "nan3 L d " << aWeight->L->d << std::endl;
@@ -238,12 +253,14 @@ void Cnn::update()
 				std::cout << "FOUND A NAN!" << std::endl;
 				while(true){}
 			}
+			aNum++;
 			aWeight->d = 0;
 			aWeight = aWeight->n;
 		}
 		while(aNode != NULL)
 		{
-			aNode->bias -= learning_rate*aNode->bias_d/(float)batch;
+			aNode->bias_d_old = momentum_fac*aNode->bias_d_old + learning_rate*aNode->bias_d/(float)batch;
+			aNode->bias -= aNode->bias_d_old;
 			aNode->bias_d = 0;
 			aNode = aNode->n;
 		}
