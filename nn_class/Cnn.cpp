@@ -1,8 +1,89 @@
 #include "Cnn.h"
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <math.h>
 #include <random>
+using namespace std;
+Cnn::Cnn(std::string aFile)
+{
+	ifstream file;
+	string str;
+	file.open(aFile);
+	act = relu;
+	act_dir = relu_dir;
+	error = mse;
+	error_dir = mse_dir;
+	node *aNode;
+	node *aNode2;
+	node *spareN;
+	weight *aWeight;
+	weight *spareW;
+
+	getline(file,str);
+	numLayers = stoi(str);
+	layerDims = (int*)malloc(sizeof(int)*numLayers);
+	for(int i = 0; i < numLayers; i++)
+	{
+		getline(file,str);
+		layerDims[i] = stoi(str);
+		nodes.push_back( (struct node*)std::malloc(sizeof(struct node)));
+		aNode = nodes[i];
+		for(int j = 0; j <layerDims[i]; j++)
+		{
+			aNode->b=0;
+			aNode->a=0;
+			if(i != 0)
+			{
+				getline(file,str);
+				aNode->bias= stof(str);
+			}
+			else
+				aNode->bias = 0;
+			aNode->bias_d=0;
+			aNode->bias_d_m=0;
+			aNode->bias_d_v=0;
+			aNode->d=0;
+			aNode->n =  (struct node*)std::malloc(sizeof(struct node));
+			spareN = aNode;
+			aNode = aNode->n;
+		}
+		spareN->n = NULL;
+		std::free(aNode);
+	}
+	//START: Complete graph nn
+	for(int i = 0; i < numLayers-1; i++)
+	{
+		weights.push_back( (struct weight*)std::malloc(sizeof(struct weight)));
+		aWeight = weights[i];
+		aNode = nodes[i];
+		aNode2 = nodes[i+1];
+		for(int j = 0; j <layerDims[i]; j++)
+		{
+			for(int k = 0; k <layerDims[i+1]; k++)
+			{
+				aWeight->L = aNode;
+				aWeight->R = aNode2;
+				getline(file,str);
+				aWeight->w = stof(str);
+				aWeight->d_m=0;
+				aWeight->d_v=0;
+//				std::cout << aWeight->w << std::endl;
+				aWeight->d = 0; 
+				aWeight->n =  (struct weight*)std::malloc(sizeof(struct weight));
+				spareW = aWeight;
+				aWeight = aWeight->n;
+				aNode2 = aNode2->n;
+			}
+			aNode = aNode->n;
+			aNode2 = nodes[i+1];
+		}
+		spareW->n = NULL;
+		std::free(aWeight);
+	}
+	//END: Complete graph nn
+	file.close();
+}
 Cnn::Cnn(int numOfLayers, int *layers)
 {
 	act = relu;
@@ -19,14 +100,17 @@ Cnn::Cnn(int numOfLayers, int *layers)
 	layerDims = (int*)malloc(sizeof(int)*numOfLayers);
 	for(int i = 0; i < numOfLayers; i++)
 	{
+		layerDims[i] = layers[i];
 		nodes.push_back( (struct node*)std::malloc(sizeof(struct node)));
 		aNode = nodes[i];
 		for(int j = 0; j <layers[i]; j++)
 		{
 			aNode->b=0;
 			aNode->a=0;
-			aNode->bias=0;
+			aNode->bias= dis(gen)*(sqrt(1.0/layerDims[i]));
 			aNode->bias_d=0;
+			aNode->bias_d_m=0;
+			aNode->bias_d_v=0;
 			aNode->d=0;
 			aNode->n =  (struct node*)std::malloc(sizeof(struct node));
 			spareN = aNode;
@@ -34,7 +118,6 @@ Cnn::Cnn(int numOfLayers, int *layers)
 		}
 		spareN->n = NULL;
 		std::free(aNode);
-		layerDims[i] = layers[i];
 	}
 	//START: Complete graph nn
 	for(int i = 0; i < numOfLayers-1; i++)
@@ -50,7 +133,8 @@ Cnn::Cnn(int numOfLayers, int *layers)
 				aWeight->L = aNode;
 				aWeight->R = aNode2;
 				aWeight->w = dis(gen)*(sqrt(1.0/layerDims[i]));
-				aWeight->d_old=0;
+				aWeight->d_m=0;
+				aWeight->d_v=0;
 //				std::cout << aWeight->w << std::endl;
 				aWeight->d = 0; 
 				aWeight->n =  (struct weight*)std::malloc(sizeof(struct weight));
@@ -231,36 +315,53 @@ void Cnn::update()
 		return;
 	node *aNode = nodes[numLayers-1];
 	weight *aWeight;
-	int aNum = 0;
+	runs++;
+	float m = 0;
+	float v = 0;
 	for(int i = numLayers-2; i > -1; i--)
 	{
 		aNode = nodes[i+1];
 		aWeight = weights[i];
 		while(aWeight != NULL)
 		{
-			aWeight->d_old = momentum_fac*aWeight->d_old+learning_rate*aWeight->d/(float)batch;
-			aWeight->w -= aWeight->d_old;
-//			if(aNum < 20)
-//				std::cout << "nan3 w d " << aWeight->d << std::endl;
-			if(isnan(aWeight->w) || isnan(aWeight->L->d)||(aWeight->w >300))
+			if(adam)
 			{
-				std::cout << "nan3 L d " << aWeight->L->d << std::endl;
-				std::cout << "nan3 R d " << aWeight->R->d << std::endl;
-				std::cout << "nan3 L a " << aWeight->L->a << std::endl;
-				std::cout << "nan3 w " << aWeight->w << std::endl;
-				std::cout << "nan3 w d " << aWeight->d << std::endl;
-				std::cout << "nan3 batch " << batch << std::endl;
-				std::cout << "FOUND A NAN!" << std::endl;
-				while(true){}
+				aWeight->d_m = beta_1*aWeight->d_m + (1.0-beta_1)*aWeight->d/(float)batch;
+//				std::cout << "d_m: " << aWeight->d_m << std::endl;
+				aWeight->d_v = beta_2*aWeight->d_v + (1.0-beta_2)*(aWeight->d*aWeight->d/(float)(batch*batch));
+//				std::cout << "d_v: " << aWeight->d_v << std::endl;
+				m = aWeight->d_m/(1.0-pow(beta_1,runs));
+//				std::cout << "m: " << m << std::endl;
+				v = aWeight->d_v/(1.0-pow(beta_2,runs));
+//				std::cout << "v: " << v << std::endl;
+//				std::cout << "last: " << learning_rate*m/(sqrt(v)+eps) << std::endl;
+				aWeight->w -= learning_rate*m/(sqrt(v)+eps);
+			//		aWeight->w*0.0005;
 			}
-			aNum++;
+			else
+			{
+				aWeight->d_m = momentum_fac*aWeight->d_m + learning_rate*aWeight->d/(float)batch;
+				aWeight->w -= aWeight->d_m;
+			}
 			aWeight->d = 0;
 			aWeight = aWeight->n;
 		}
 		while(aNode != NULL)
 		{
-			aNode->bias_d_old = momentum_fac*aNode->bias_d_old + learning_rate*aNode->bias_d/(float)batch;
-			aNode->bias -= aNode->bias_d_old;
+
+			if(adam)
+			{
+				aNode->bias_d_m = beta_1*aNode->bias_d_m + (1.0-beta_1)*aNode->bias_d/(float)batch;
+				aNode->bias_d_v = beta_2*aNode->bias_d_v + (1.0-beta_2)*(aNode->bias_d*aNode->bias_d/(float)(batch*batch));
+				m = aNode->bias_d_m/(1.0-pow(beta_1,runs));
+				v = aNode->bias_d_v/(1.0-pow(beta_2,runs));
+				aNode->bias -= learning_rate*m/(sqrt(v)+eps);
+			}
+			else
+			{
+				aNode->bias_d_m = momentum_fac*aNode->bias_d_m + learning_rate*aNode->bias_d/(float)batch;
+				aNode->bias -= aNode->bias_d_m;
+			}
 			aNode->bias_d = 0;
 			aNode = aNode->n;
 		}
@@ -301,6 +402,36 @@ void Cnn::reset()
 void Cnn::setLearnRate(float lr)
 {
 	learning_rate = lr;
+}
+
+void Cnn::save(std::string aFile)
+{
+	ofstream myfile;
+	myfile.open(aFile);
+	myfile << numLayers << endl;
+	weight *aWeight;
+	node *aNode;
+	myfile << layerDims[0] << endl;
+	for(int i = 1; i < numLayers; i++)
+	{
+		aNode = nodes[i];
+		myfile << layerDims[i] << endl;
+		while(aNode != NULL)
+		{
+			myfile << aNode->bias << endl;
+			aNode = aNode->n;
+		}
+	}
+	for(int i = 0; i < numLayers-1; i++)
+	{
+		aWeight = weights[i];
+		while(aWeight != NULL)
+		{
+			myfile << aWeight->w << " "<<endl;
+			aWeight = aWeight->n;
+		}
+	}
+	myfile.close();
 }
 
 float relu(float inp)

@@ -5,16 +5,16 @@
 #include <random>
 #include "TRI/to_read.h"
 #include "nn_class/Cnn.h"
-#define SIZE 5
+#define SIZE 3
 #define PRE 4
 #define OUT 10		//DO NOT CHANGE
 #define IN 28*28	//DO NOT CHANGE
-#define MID 28
-#define TESTS 60000
-#define TEST_EVERY 1000
-#define TESTROUNDS 10000
+#define MID 800
+#define TESTS 200
+#define TEST_EVERY 201
+#define TESTROUNDS 1000
 #define FINAL_TEST 10000
-#define BATCH 15
+#define BATCH 25
 #define CORRECT 1.0f
 using namespace std;
 
@@ -26,7 +26,7 @@ float tanH(float f)
 float tanH_d(float f)
 {
 	double v = 4*(exp((double)(f))/(1+exp((double)(2*f))))*(exp((double)(f))/(1+exp((double)(2*f))));
-	return (float)v;	
+	return (float)v;
 }
 float sigmoid(float f)
 {
@@ -72,12 +72,10 @@ int main(int argc, char *argv[])
 		dims[i] = MID;
 	}
 	dims[0] = IN;
-	dims[1] = IN/14;
-	dims[2] = IN/28;
-	dims[3] = IN/56;
 	dims[SIZE-1] = OUT;
 
-	Cnn aNet(SIZE,dims);
+	Cnn aNet("lalala.txt");
+//	Cnn aNet(SIZE,dims);
 //	aNet.setAct(sigmoid,sigmoid_d);
 //	aNet.setAct(tanH,tanH_d);
 	float *values = (float*) malloc(sizeof(float)*OUT);
@@ -100,7 +98,7 @@ int main(int argc, char *argv[])
 	{
 		if(i%TEST_EVERY == 0)
 		{
-			cout << "Starting test: " << endl;
+			cout << "Starting test: "<<TESTROUNDS << " in size" << endl;
 			numBigger = 0;
 			for(int j = 0; j < TESTROUNDS; j++)
 			{
@@ -170,6 +168,9 @@ int main(int argc, char *argv[])
 		total[res]++;
 		aNet.reset();
 	}
+//	cout << "Saving." << endl;
+//	aNet.save("lalala.txt");
+//	cout << "Done." << endl;
 	cout << "Results: " << numBigger << " / " << FINAL_TEST << " Correct" << endl << endl;
 	cout << "Which it got wrong: " <<  endl;
 	for(int i = 0; i < OUT;i++)

@@ -1,6 +1,7 @@
 #ifndef CNN
 #define CNN
 #include <vector>
+#include <string>
 class Cnn
 {
 public:
@@ -11,18 +12,23 @@ public:
 	float (*act_dir)(float);
 	float softmax(float inp);
 	float softmax_dir(float inp);
-	float learning_rate = .1;
-	float limit_rate = 0;
+	float learning_rate = .0005;
+	float beta_1 = 0.9;
+	float beta_2 = 0.999;
+	float eps = 0.00000001;
 	float momentum_fac = 0.9;
 	double total_soft = 0;
 	int batch = 0;
+	int runs = 0;
+	bool adam = true;
 	struct node
 	{
 		float b=0;
 		float a=0;
 		float bias=0;
 		float bias_d=0;
-		float bias_d_old=0;
+		float bias_d_m=0;
+		float bias_d_v=0;
 		float d=0;
 		node *n = NULL;
 	};
@@ -31,7 +37,8 @@ public:
 		node *L=NULL;
 		node *R=NULL;
 		float w=0;
-		float d_old=0;
+		float d_m=0;
+		float d_v=0;
 		float d=0;
 		weight *n = NULL;
 		weight *alt = NULL; //if NULL, is original wait. Otherwise, update the thing in the address
@@ -39,7 +46,7 @@ public:
 
 public:
 	Cnn(int numOfLayers, int *layers);
-	Cnn(int numOfLayers, int numOfNodes);
+	Cnn(std::string aFile);
 	void backprop(float *real_vals);
 	void update();
 	void reset();
@@ -48,6 +55,7 @@ public:
 	void setLearnRate(float lr);
 	void run(float *input);
 	void results(float *results);
+	void save(std::string aFile);
 	void destroy();
 
 private:
