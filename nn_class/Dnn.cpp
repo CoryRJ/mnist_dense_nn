@@ -1,11 +1,11 @@
-#include "Cnn.h"
+#include "Dnn.h"
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <math.h>
 #include <random>
 using namespace std;
-Cnn::Cnn(std::string aFile)
+Dnn::Dnn(std::string aFile)
 {
 	ifstream file;
 	string str;
@@ -84,7 +84,7 @@ Cnn::Cnn(std::string aFile)
 	//END: Complete graph nn
 	file.close();
 }
-Cnn::Cnn(int numOfLayers, int *layers)
+Dnn::Dnn(int numOfLayers, int *layers)
 {
 	act = relu;
 	act_dir = relu_dir;
@@ -151,14 +151,14 @@ Cnn::Cnn(int numOfLayers, int *layers)
 	//END: Complete graph nn
 	numLayers = numOfLayers;
 }
-float Cnn::softmax(float inp)
+float Dnn::softmax(float inp)
 {
 	double res = exp((double)inp)/total_soft;
 //	if(isinf(res)||isnan(res))
 //		return 0;
 	return (float)res;
 }
-float Cnn::softmax_dir(float inp)
+float Dnn::softmax_dir(float inp)
 {
 	double res = (exp((double)inp)/total_soft)*((total_soft-exp((double)inp))/total_soft);
 //	if(isinf(res)||isnan(res))
@@ -166,7 +166,7 @@ float Cnn::softmax_dir(float inp)
 	return (float)res;
 }
 
-void Cnn::backprop(float *real_vals)
+void Dnn::backprop(float *real_vals)
 {
 	batch++;
 	node *aNode = nodes[numLayers-1];
@@ -240,18 +240,18 @@ void Cnn::backprop(float *real_vals)
 	}
 	
 }
-void Cnn::setAct(float (*f)(float),float (*f_d)(float))
+void Dnn::setAct(float (*f)(float),float (*f_d)(float))
 {
 	act = f;
 	act_dir = f_d;
 }
-void Cnn::setError(float (*f)(float,float,float),float (*f_d)(float,float,float))
+void Dnn::setError(float (*f)(float,float,float),float (*f_d)(float,float,float))
 {
 	error = f;
 	error_dir = f_d;
 }
 
-void Cnn::run(float *input)
+void Dnn::run(float *input)
 {
 	node *aNode = nodes[0];
 	weight *aWeight;
@@ -297,7 +297,7 @@ void Cnn::run(float *input)
 	}
 }
 
-void Cnn::results(float *result)
+void Dnn::results(float *result)
 {
 	node *aNode=nodes[numLayers-1];
 	for(int i =0; i < layerDims[numLayers-1]; i++)
@@ -309,7 +309,7 @@ void Cnn::results(float *result)
 //	std::cout << std::endl;
 }
 
-void Cnn::update()
+void Dnn::update()
 {
 	if(batch == 0)
 		return;
@@ -369,7 +369,7 @@ void Cnn::update()
 	batch = 0;
 }
 
-void Cnn::reset()
+void Dnn::reset()
 {
 	
 	node *aNode;
@@ -399,12 +399,12 @@ void Cnn::reset()
 	batch = 0;
 }
 
-void Cnn::setLearnRate(float lr)
+void Dnn::setLearnRate(float lr)
 {
 	learning_rate = lr;
 }
 
-void Cnn::save(std::string aFile)
+void Dnn::save(std::string aFile)
 {
 	ofstream myfile;
 	myfile.open(aFile);
