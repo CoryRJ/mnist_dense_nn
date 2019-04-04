@@ -1,8 +1,8 @@
-#ifndef CNN
-#define CNN
+#ifndef DNN
+#define DNN
 #include <vector>
 #include <string>
-class Cnn
+class Dnn
 {
 public:
 	int numLayers;
@@ -45,8 +45,8 @@ public:
 	};
 
 public:
-	Cnn(int numOfLayers, int *layers);
-	Cnn(std::string aFile);
+	Dnn(int numOfLayers, int *layers);
+	Dnn(std::string aFile);
 	void backprop(float *real_vals);
 	void update();
 	void reset();
