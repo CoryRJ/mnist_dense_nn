@@ -4,7 +4,7 @@
 #include <math.h>
 #include <random>
 #include "TRI/to_read.h"
-#include "nn_class/Cnn.h"
+#include "nn_class/Dnn.h"
 #define SIZE 3
 #define PRE 4
 #define OUT 10		//DO NOT CHANGE
@@ -74,8 +74,8 @@ int main(int argc, char *argv[])
 	dims[0] = IN;
 	dims[SIZE-1] = OUT;
 
-	Cnn aNet("lalala.txt");
-//	Cnn aNet(SIZE,dims);
+	Dnn aNet("lalala.txt");
+//	Dnn aNet(SIZE,dims);
 //	aNet.setAct(sigmoid,sigmoid_d);
 //	aNet.setAct(tanH,tanH_d);
 	float *values = (float*) malloc(sizeof(float)*OUT);
